@@ -224,7 +224,7 @@ var _ = g.Describe("[Feature:Prometheus][Conformance] Prometheus", func() {
 		})
 	})
 
-	g.Describe("when installed on the cluster II", func() {
+	g.Describe("when on the cluster", func() {
 
 		oc = exutil.NewCLI("monitoring", exutil.KubeConfigPath())
 
@@ -287,7 +287,36 @@ var _ = g.Describe("[Feature:Prometheus][Conformance] Prometheus", func() {
 			}
 
 		})
+		g.It("terminationMessagePolicy for cluster-monitoring-operator pod should be: FallbackToLogsOnError", func() {
+			oc.SetNamespace("openshift-monitoring")
+			e2e.Logf("Add admin role to current user.")
+			err := oc.AsAdmin().Run("adm").Args("policy", "add-role-to-user", "admin", oc.Username()).Execute()
+			o.Expect(err).NotTo(o.HaveOccurred())
 
+			e2e.Logf("Get list of pods for specific namespace.")
+			podList, err := oc.AdminKubeClient().CoreV1().Pods(oc.Namespace()).List(metav1.ListOptions{})
+
+			if err != nil {
+				e2e.Logf("Error in podList: %v", err)
+				return
+			}
+
+			terminationMessage := `terminationMessagePolicy: FallbackToLogsOnError`
+
+			for _, pod := range podList.Items {
+				if strings.Contains(pod.Name, "cluster-monitoring-operator") {
+					e2e.Logf("Try to get %s pod config.", pod.Name)
+					podYamlOutput, err := oc.Run("get").Args("pod", pod.Name, "-o", "yaml").Output()
+					if err != nil {
+						e2e.Logf("Error with getting pod yaml: %s\n", err)
+					}
+					e2e.Logf("Check that pod config include proper terminationMessagePolicy section.")
+					o.Expect(strings.Contains(strings.TrimSpace(podYamlOutput), strings.TrimSpace(terminationMessage))).To(o.Equal(true))
+				}
+
+			}
+
+		})
 	})
 
 })
