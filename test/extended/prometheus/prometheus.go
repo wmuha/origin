@@ -321,7 +321,7 @@ var _ = g.Describe("[Feature:Prometheus][Conformance] Prometheus", func() {
 		g.It("and ClusterOperator named monitoring is populated", func() {
 			oc.SetNamespace("openshift-monitoring")
 			e2e.Logf("Add cluster admin role to current user.")
-            err := oc.AsAdmin().Run("adm").Args("policy", "add-cluster-role-to-user", "cluster-admin", oc.Username()).Execute()
+			err := oc.AsAdmin().Run("adm").Args("policy", "add-cluster-role-to-user", "cluster-admin", oc.Username()).Execute()
 			o.Expect(err).NotTo(o.HaveOccurred())
 
 			clusterOperatorText := `kind: ClusterOperator`
@@ -332,9 +332,26 @@ var _ = g.Describe("[Feature:Prometheus][Conformance] Prometheus", func() {
 			if err != nil {
 				e2e.Logf("Error with getting cluster operator yaml: %s\n", err)
 			}
-			e2e.Logf("Check that cluster operator configuration include proper name section.")
+			e2e.Logf("Check that cluster operator configuration includes proper name section.")
 			o.Expect(strings.Contains(strings.TrimSpace(clusterOperatorCfgOutput), strings.TrimSpace(clusterOperatorText))).To(o.Equal(true))
 			o.Expect(strings.Contains(strings.TrimSpace(clusterOperatorCfgOutput), strings.TrimSpace(nameText))).To(o.Equal(true))
+
+			routeAlertManager := "alertmanager-main"
+			routeGrafana := "grafana"
+			routePometheusK8s := "prometheus-k8s"
+			routes := map[int]string{1: routeAlertManager, 2: routeGrafana, 3: routePometheusK8s}
+
+			e2e.Logf("Will get all possible routes in 'openshift-monitoring' name space.")
+			routeOutput, err := oc.Run("get").Args("route", "--no-headers").Output()
+			if err != nil {
+				e2e.Logf("Error with getting routes: %s\n", err)
+			}
+
+			for _, v := range routes {
+                e2e.Logf("Check existing basic route -- %s", v)
+       			o.Expect(strings.Contains(strings.TrimSpace(routeOutput), v)).To(o.Equal(true))
+			}
+
 
 		})
 	})
